@@ -1,0 +1,3 @@
+# Ignore capture files generated during execution
+onion-net/captures/
+*.pcap
