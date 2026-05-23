@@ -6,6 +6,7 @@
 - [Tor](#tor)
   - [Onion Network](#onion-network)
     - [Run](#run)
+    - [Capture traffic](#capture-traffic)
 - [Privacy](#privacy)
   - [Requirements](#requirements)
   - [Linking Attack](#linking-attack)
@@ -13,6 +14,7 @@
     - [Datasets Generation](#datasets-generation)
     - [K-anonymity](#k-anonymity)
     - [Re-identification Attack](#re-identification-attack)
+    - [Show Datasets](#show-datasets)
 
 # About the Project
 Repository for our lecture about Tor and Privacy for the Network Security 2026 course at Università di Trento.
@@ -107,6 +109,7 @@ The attacks require the following Python modules:
 - mimesis
 - numpy 
 - pandas
+- streamlit
 
 ## Linking Attack
 
@@ -119,6 +122,7 @@ used to create the entries of the patients and voters datasets
 the voters
 - `k_anonymity.py`: apply k-anonymity to the dataset of the patients
 - `linking_attack.py`: performs the re-identification attack
+- `show_datasets.py`: function to visualize datasets with streamlit framework
 
 ### Datasets Generation
 To generate the patients and voters datasets you need to run:
@@ -150,3 +154,20 @@ python3 linking_attack.py <p_dataset>
 
 p_dataset is not necessary, it indicates the patients dataset (the default is 
 `patients.csv`). 
+
+### Show Datasets
+To show the datasets you need to run:
+
+```bash
+streamlit run show_datasets.py -- --my_arg <p_dataset>
+```
+
+p_dataset indicates the patients dataset to use. 
+
+> **Note**
+>
+> If streamlit requires the email just press enter.
+
+> **Note**
+>
+> The local URL is displayed in the terminal.
