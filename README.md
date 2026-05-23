@@ -16,11 +16,25 @@ sudo python3 onion-net/topology.py
 ```
 This will open mininet CLI where each node can be manually contolled.
 
-To auto-capture pcap files trough tcpdump for every path interface, run:
+To auto-capture pcap files through tcpdump for every path interface, run:
 
 ```bash
 sudo python3 onion-net/topology.py --capture
 ```
+
+To merge all generated PCAPs into a single file for Wireshark analysis, run:
+
+```bash
+./onion-net/merge_pcaps.sh
+```
+
+Or use the Makefile target:
+
+```bash
+make merge-captures
+```
+
+The merged file is written to `onion-net/captures/all-captures.pcap`.
 
 To start a mock HTTP web request from the client to the server, run:
 
@@ -28,12 +42,22 @@ To start a mock HTTP web request from the client to the server, run:
 sudo python3 onion-net/topology.py --http-demo
 ```
 
+To exercise a minimal layered onion request through entry/middle/exit, run:
+
+```bash
+sudo python3 onion-net/topology.py --onion-demo
+```
+
+The onion demo now prints per-node debug progress in the terminal so you can see request forwarding and response handling.
+
+The onion demo code lives in `onion-net/onion_proto.py` and `onion-net/onion_comm.py`.
+
 To measure per-hop and end-to-end latency through the relay path, run:
 
 ```bash
 sudo python3 onion-net/topology.py --test-latency
 ```
-```
+
 
 ### Capture traffic
 

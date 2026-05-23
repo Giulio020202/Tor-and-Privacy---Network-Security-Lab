@@ -1,3 +1,5 @@
 # Ignore capture files generated during execution
 onion-net/captures/
 *.pcap
+onion-net/__pycache__/
+*.pyc

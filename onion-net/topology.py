@@ -1,5 +1,7 @@
 import argparse
 import signal
+import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -20,13 +22,86 @@ def start_tcpdump(host, intf, filename):
     cmd = ["tcpdump", "-n", "-U", "-s", "0", "-i", intf, "-w", str(filename)]
     return host.popen(cmd)
 
+# this is awful but works for now, will fix
 def start_http_demo(client, server):
-    server.cmd("mkdir -p /tmp/fake_site")
-    server.cmd("cat > /tmp/fake_site/index.html <<'EOF'\n<html><body><h1>Fake Onion Site</h1><p>This page is served by the simulated server.</p></body></html>\nEOF\n")
-    http_proc = server.popen(["python3", "-m", "http.server", "8080", "--directory", "/tmp/fake_site"])
+    site_dir = Path(__file__).resolve().parent / "site"
+    http_proc = server.popen(["python3", "-m", "http.server", "8080", "--directory", str(site_dir)])
     time.sleep(1)
     client_output = client.cmd("python3 -c 'import urllib.request; print(urllib.request.urlopen(\"http://10.0.0.7:8080\").read().decode())'")
     return http_proc, client_output
+
+
+def start_onion_demo(client, entry, middle, exit_node, server):
+    script_path = Path(__file__).resolve().parent / "onion_comm.py"
+    site_dir = Path(__file__).resolve().parent / "site"
+    http_proc = server.popen(["python3", "-m", "http.server", "8080", "--directory", str(site_dir)])
+
+    relays = [
+        (entry, "entry", "10.0.0.1", 9001),
+        (middle, "middle", "10.0.0.3", 9002),
+        (exit_node, "exit", "10.0.0.5", 9003),
+    ]
+    relay_procs = []
+    relay_logs = {}
+
+    def stream_relay_output(name, proc, output_list):
+        while True:
+            line = proc.stdout.readline()
+            if not line:
+                break
+            try:
+                text = line.decode("utf-8", errors="ignore")
+            except Exception:
+                text = str(line)
+            print(f"[{name}] {text.rstrip()}")
+            output_list.append(text)
+
+    for host, key, ip, port in relays:
+        cmd = [
+            "python3",
+            str(script_path),
+            "--mode",
+            "relay",
+            "--key",
+            key,
+            "--listen-ip",
+            ip,
+            "--listen-port",
+            str(port),
+            "--server-ip",
+            "10.0.0.7",
+            "--server-port",
+            "8080",
+        ]
+        proc = host.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        relay_output = []
+        thread = threading.Thread(target=stream_relay_output, args=(key, proc, relay_output), daemon=True)
+        thread.start()
+        relay_procs.append((host, proc, thread))
+        relay_logs[key] = relay_output
+
+    time.sleep(1)
+
+    client_output = client.cmd(f"python3 {script_path} --mode client --entry-ip 10.0.0.1 --entry-port 9001 --path /")
+    print("[mn] Onion demo: request sent from client")
+
+    success = False
+    time.sleep(1)
+    for _ in range(5):
+        for outputs in relay_logs.values():
+            if any("EXIT node received request" in line for line in outputs):
+                success = True
+                break
+        if success:
+            break
+        time.sleep(1)
+
+    if success:
+        print("[mn] Onion demo: response received by exit relay")
+    else:
+        print("[mn] Onion demo: response not detected")
+
+    return http_proc, relay_procs, client_output, success
 
 
 def parse_ping_avg(output):
@@ -69,7 +144,7 @@ def capture_interfaces():
 
 
 # actual network setup and startup
-def create_network(capture=False, http_demo=False, test_latency=False):
+def create_network(capture=False, http_demo=False, test_latency=False, onion_demo=False):
     net = Mininet(link=TCLink, autoSetMacs=True)
 
     # create nodes
@@ -129,9 +204,15 @@ def create_network(capture=False, http_demo=False, test_latency=False):
         time.sleep(1)   # this shouldnt be necessary, but without it the captures sometimes are empty
         print(f"[mn] Saved captures to {capture_path}/")
 
-    # helper function, if --http-demo is used, start a mockup http server
+    # helper processes and demo mode support
     http_proc = None
-    if http_demo:
+    relay_info = []
+    if onion_demo:
+        http_proc, relay_info, client_output, success = start_onion_demo(client, entry, middle, exit_node, server)
+        status = "OK" if success else "FAIL"
+        print(f"[mn] Onion demo completed (status: {status})")
+        print("[mn] Client output:\n", client_output)
+    elif http_demo:
         http_proc, client_output = start_http_demo(client, server)
         print("[mn] HTTP demo started on server at http://10.0.0.7:8080")
         print("[mn] Client request output:\n", client_output)
@@ -154,6 +235,20 @@ def create_network(capture=False, http_demo=False, test_latency=False):
             proc.wait(timeout=5)
         except Exception:
             proc.terminate()
+    for host, proc, thread in relay_info:
+        try:
+            proc.terminate()
+            proc.wait(timeout=3)
+        except Exception:
+            try:
+                if hasattr(proc, 'pid'):
+                    host.cmd(f"kill -9 {proc.pid} 2>/dev/null || true")
+            except Exception:
+                pass
+        try:
+            thread.join(timeout=1)
+        except Exception:
+            pass
     if http_proc:
         http_proc.terminate()
 
@@ -166,7 +261,8 @@ if __name__ == "__main__":
     parser.add_argument("--capture", action="store_true", help="start tcpdump on each path interface")
     parser.add_argument("--http-demo", action="store_true", help="start a fake HTTP server and request a page from the client")
     parser.add_argument("--test-latency", action="store_true", help="measure per-hop and end-to-end latency over the relay path")
+    parser.add_argument("--onion-demo", action="store_true", help="run a minimal layered onion request through entry/middle/exit")
     args = parser.parse_args()
 
     setLogLevel("info") 
-    create_network(capture=args.capture, http_demo=args.http_demo, test_latency=args.test_latency)
+    create_network(capture=args.capture, http_demo=args.http_demo, test_latency=args.test_latency, onion_demo=args.onion_demo)
