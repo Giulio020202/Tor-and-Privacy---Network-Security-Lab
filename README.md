@@ -1,6 +1,24 @@
-# Tor and Privacy - Network Security Lab
+<h1 align="center">Tor and Privacy - Network Security Lab</h1>
+
+## Table of Contents
+
+- [About the Project](#about-the-project)
+- [Tor](#tor)
+  - [Onion Network](#onion-network)
+    - [Run](#run)
+- [Privacy](#privacy)
+  - [Requirements](#requirements)
+  - [Linking Attack](#linking-attack)
+    - [Folder Organization](#folder-organization)
+    - [Datasets Generation](#datasets-generation)
+    - [K-anonymity](#k-anonymity)
+    - [Re-identification Attack](#re-identification-attack)
+
+# About the Project
 Repository for our lecture about Tor and Privacy for the Network Security 2026 course at Università di Trento.
 It is divided in 3 parts: A barebone simulation of a onion network, a demo of a timing based deanonymization attack on said network and a deanonymization attack on a pseudoanonymized dataset.
+
+# Tor
 
 ## Onion Network
 
@@ -82,3 +100,53 @@ Inside the Mininet CLI you can also test connectivity with:
 ```bash
 pingall
 ```
+# Privacy
+
+## Requirements 
+The attacks require the following Python modules:
+- mimesis
+- numpy 
+- pandas
+
+## Linking Attack
+
+### Folder Organization
+The `privacy/linking attack` directory contains the Latanya Sweeney
+re-identification attack. It contains the following Python scripts:
+- `_generators.py`: contains the PatientGenerator and VoterGenerator classes
+used to create the entries of the patients and voters datasets
+- `generate_datasets.py`: script that generates the datasets of the patients and
+the voters
+- `k_anonymity.py`: apply k-anonymity to the dataset of the patients
+- `linking_attack.py`: performs the re-identification attack
+
+### Datasets Generation
+To generate the patients and voters datasets you need to run:
+
+```bash
+python3 generate_datasets.py <n_entry> 
+```
+
+n_entry is not necessary, it indicates the number of entries in the dataset
+(the default is 1000). The script generates two datasets named
+`patients.csv` and `voters.csv`.
+
+### K-anonymity 
+To apply k-anonymity to the patients dataset (`patients.csv`) you need to run:
+
+```bash
+python3 k_anonymity.py <k> 
+```
+
+k is not necessary, it indicates the level of k-anonymity (the default is 2). It
+generates the dataset `k_patients.csv`.
+
+### Re-identification Attack
+To perform the linking attack you need to run:
+
+```bash
+python3 linking_attack.py <p_dataset> 
+```
+
+p_dataset is not necessary, it indicates the patients dataset (the default is 
+`patients.csv`). 
