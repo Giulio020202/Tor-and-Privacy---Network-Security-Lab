@@ -15,6 +15,9 @@
     - [K-anonymity](#k-anonymity)
     - [Re-identification Attack](#re-identification-attack)
     - [Show Datasets](#show-datasets)
+  - [IP Pseudonymization](#ip-pseudonymization)
+    - [Folder Organization](#folder-organization-1)
+    - [Datasets Generation](#datasets-generation-1)
 
 # About the Project
 Repository for our lecture about Tor and Privacy for the Network Security 2026 course at Università di Trento.
@@ -171,3 +174,23 @@ p_dataset indicates the patients dataset to use.
 > **Note**
 >
 > The local URL is displayed in the terminal.
+
+## IP Pseudonymization
+
+### Folder Organization
+The `privacy/IP_pseudo` directory contains the exercise about pseudonymization
+of IPv4 addresses. It contains the following files:
+- `ip_exercise.py`: the code to run the exercise with the streamlit framework
+- `dns_new.csv`: the DNS Wireshark capture (format .csv)
+- `dns.cap`: the DNS Wireshark capture (format .cap)
+
+### Datasets Generation
+To run the exercise:
+
+```bash
+streamlit run ip_exercise.py
+```
+
+> **Note**
+>
+> If streamlit requires the email just press enter.
