@@ -3,7 +3,7 @@ import sys
 from mimesis import Generic
 from mimesis.locales import Locale
 
-from generate_datasets import PatientGenerator
+from _generetors import PatientGenerator
 
 if len(sys.argv) > 2:
     raise Exception("arguments must be less than three")
