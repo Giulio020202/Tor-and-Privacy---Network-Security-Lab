@@ -1,8 +1,8 @@
-CAPTURE_DIR=onion-net/captures
+CAPTURE_DIR=/captures
 
 .PHONY: clean merge-captures
 clean:
 	rm -rf $(CAPTURE_DIR)
 
 merge-captures:
-	./onion-net/merge_pcaps.sh
+	./merge_pcaps.sh

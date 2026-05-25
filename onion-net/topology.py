@@ -19,10 +19,42 @@ def capture_dir():
 
 # helper functions for running tcpdump on each node
 def start_tcpdump(host, intf, filename):
-    cmd = ["tcpdump", "-n", "-U", "-s", "0", "-i", intf, "-w", str(filename)]
-    return host.popen(cmd)
+    # --immediate-mode flushes each packet to disk as it arrives (same as -U,
+    # but explicit). This ensures the pcap file is always in a consistent state
+    # and is not left with partial packet data if the process is stopped.
+    cmd = ["tcpdump", "-n", "--immediate-mode", "-s", "0", "-i", intf, "-w", str(filename)]
+    return host.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-# this is awful but works for now, will fix
+
+def stop_tcpdump_procs(dump_procs, timeout=8):
+    """
+    Gracefully stop tcpdump processes so pcap files are properly finalised.
+
+    Strategy: send SIGINT (which makes tcpdump flush and write the file
+    trailer), wait up to `timeout` seconds, then fall back to SIGTERM.
+    We never send SIGKILL — that cuts the file mid-write and produces the
+    'damaged or corrupt' error seen by mergecap/Wireshark.
+    """
+    for proc in dump_procs:
+        try:
+            proc.send_signal(signal.SIGINT)
+        except Exception:
+            pass
+
+    deadline = time.time() + timeout
+    for proc in dump_procs:
+        remaining = max(0.5, deadline - time.time())
+        try:
+            proc.wait(timeout=remaining)
+        except subprocess.TimeoutExpired:
+            print("[mn] WARNING: tcpdump did not exit after SIGINT; sending SIGTERM")
+            try:
+                proc.send_signal(signal.SIGTERM)
+                proc.wait(timeout=3)
+            except Exception:
+                pass  # accept a possibly truncated capture rather than corrupting it with SIGKILL
+
+
 def start_http_demo(client, server):
     site_dir = Path(__file__).resolve().parent / "site"
     http_proc = server.popen(["python3", "-m", "http.server", "8080", "--directory", str(site_dir)])
@@ -163,11 +195,11 @@ def parse_ping_avg(output):
 def run_latency_tests(client, entry, middle, exit_node, server):
     measurements = []
     hops = [
-        (client, "10.0.0.1", "client->entry"),
-        (entry, "10.0.0.3", "entry->middle"),
-        (middle, "10.0.0.5", "middle->exitnode"),
-        (exit_node, "10.0.0.7", "exitnode->server"),
-        (client, "10.0.0.7", "client->server (full path)"),
+        (client, "10.0.0.1", "[client] -> [entry]"),
+        (entry, "10.0.0.3", "[entry] -> [middle]"),
+        (middle, "10.0.0.5", "[middle] -> [exitnode]"),
+        (exit_node, "10.0.0.7", "[exitnode] -> [server]"),
+        (client, "10.0.0.7", "[client] -> [server] (full path)"),
     ]
     for host, target, label in hops:
         output = host.cmd(f"ping -c 4 -q {target}")
@@ -283,12 +315,16 @@ def create_network(capture=False, http_demo=False, test_latency=False, onion_dem
     CLI(net)
 
     # ---- cleanup ----------------------------------------------------------
-    for proc in dump_procs:
-        try:
-            proc.send_signal(signal.SIGINT)
-            proc.wait(timeout=5)
-        except Exception:
-            proc.terminate()
+    # Order matters:
+    #   1. Stop tcpdump FIRST, while interfaces still exist, so it can flush
+    #      and write the pcap file trailer correctly.
+    #   2. Stop relay/demo processes.
+    #   3. Stop the Mininet network last (tears down interfaces).
+
+    if dump_procs:
+        print("[mn] Stopping tcpdump captures (waiting for flush)...")
+        stop_tcpdump_procs(dump_procs)
+        print("[mn] Captures finalised.")
 
     for host, proc, thread in relay_info:
         try:
