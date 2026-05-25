@@ -10,7 +10,7 @@ from mininet.link import TCLink
 from mininet.cli import CLI
 from mininet.log import setLogLevel
 
-# utility function for pcap files managemnet
+# utility function for pcap files management
 def capture_dir():
     base = Path(__file__).resolve().parent
     target = base / "captures"
@@ -104,6 +104,53 @@ def start_onion_demo(client, entry, middle, exit_node, server):
     return http_proc, relay_procs, client_output, success
 
 
+def start_tor_demo(server, capture=False):
+    """
+    Spin up a real Tor network via chutney (fully local, no internet needed),
+    start the Mininet HTTP server so the Tor exit node can reach it, then
+    send one GET request through the Tor circuit.
+
+    The exit node will forward unencrypted HTTP to server_ip:8080 on the
+    Mininet network, so students can compare:
+      - loopback capture (tor_loopback.pcap) → TLS-wrapped Tor cells
+      - server-eth0 capture                  → plain HTTP, no source IP info
+    """
+    try:
+        from tor_chutney import TorChutneyDemo
+    except ImportError as exc:
+        print(f"[mn] Cannot import tor_chutney: {exc}")
+        return None, None
+
+    site_dir = Path(__file__).resolve().parent / "site"
+    http_proc = server.popen(
+        ["python3", "-m", "http.server", "8080", "--directory", str(site_dir)]
+    )
+    time.sleep(1)
+
+    demo = TorChutneyDemo(
+        server_ip="10.0.0.7",
+        server_port=8080,
+        capture=capture,
+        capture_dir=capture_dir(),
+    )
+    try:
+        demo.start()
+        response = demo.run_request(path="/")
+        print("[mn] Tor demo complete.")
+        print("[mn] Teaching notes:")
+        print("     - Open captures/tor_loopback.pcap in Wireshark")
+        print("       Filter: 'ssl' or 'tls' – you will see TLS records, not readable HTTP.")
+        print("     - Open captures/server-eth0.pcap (if --capture was also passed)")
+        print("       Filter: 'http' – you will see plain GET / from the Tor exit IP.")
+        print("     - Compare with the toy-XOR onion demo: same layered idea,")
+        print("       but real Tor uses TLS + Diffie-Hellman instead of fixed XOR keys.")
+        return http_proc, demo
+    except Exception as exc:
+        print(f"[mn] Tor demo failed: {exc}")
+        demo.stop()
+        return http_proc, None
+
+
 def parse_ping_avg(output):
     for line in output.splitlines():
         if "min/avg/max" in line or "rtt min/avg/max" in line:
@@ -129,7 +176,6 @@ def run_latency_tests(client, entry, middle, exit_node, server):
     return measurements
 
 
-
 def capture_interfaces():
     return [
         ("client", "client-eth0", "client-eth0.pcap"),
@@ -144,7 +190,7 @@ def capture_interfaces():
 
 
 # actual network setup and startup
-def create_network(capture=False, http_demo=False, test_latency=False, onion_demo=False):
+def create_network(capture=False, http_demo=False, test_latency=False, onion_demo=False, tor_demo=False):
     net = Mininet(link=TCLink, autoSetMacs=True)
 
     # create nodes
@@ -162,7 +208,6 @@ def create_network(capture=False, http_demo=False, test_latency=False, onion_dem
 
     # start the network
     net.start()
-
 
     # set ips and routes
     #TODO: make slides about the network topology and IP scheme to explain this part better
@@ -207,7 +252,16 @@ def create_network(capture=False, http_demo=False, test_latency=False, onion_dem
     # helper processes and demo mode support
     http_proc = None
     relay_info = []
-    if onion_demo:
+    tor_demo_obj = None
+
+    if tor_demo:
+        # Real Tor via chutney – runs on the host's loopback, not inside Mininet.
+        # The Mininet server at 10.0.0.7:8080 acts as the destination; the Tor
+        # exit node reaches it via the Mininet routing table.
+        print("\n[mn] Starting Tor demo (chutney) …")
+        print("[mn] NOTE: chutney bootstrapping takes ~30 s – please wait.")
+        http_proc, tor_demo_obj = start_tor_demo(server, capture=capture)
+    elif onion_demo:
         http_proc, relay_info, client_output, success = start_onion_demo(client, entry, middle, exit_node, server)
         status = "OK" if success else "FAIL"
         print(f"[mn] Onion demo completed (status: {status})")
@@ -217,7 +271,7 @@ def create_network(capture=False, http_demo=False, test_latency=False, onion_dem
         print("[mn] HTTP demo started on server at http://10.0.0.7:8080")
         print("[mn] Client request output:\n", client_output)
 
-    # if --test-latency is used, run ping tests 
+    # if --test-latency is used, run ping tests
     if test_latency:
         print("\n[mn] Starting latency tests")
         measurements = run_latency_tests(client, entry, middle, exit_node, server)
@@ -228,13 +282,14 @@ def create_network(capture=False, http_demo=False, test_latency=False, onion_dem
     # setup done, start mininet CLI
     CLI(net)
 
-    # cleanup on exit, if doesn work use "sudo mn -c" to clean up manually
+    # ---- cleanup ----------------------------------------------------------
     for proc in dump_procs:
         try:
             proc.send_signal(signal.SIGINT)
             proc.wait(timeout=5)
         except Exception:
             proc.terminate()
+
     for host, proc, thread in relay_info:
         try:
             proc.terminate()
@@ -249,6 +304,10 @@ def create_network(capture=False, http_demo=False, test_latency=False, onion_dem
             thread.join(timeout=1)
         except Exception:
             pass
+
+    if tor_demo_obj is not None:
+        tor_demo_obj.stop()
+
     if http_proc:
         http_proc.terminate()
 
@@ -256,13 +315,28 @@ def create_network(capture=False, http_demo=False, test_latency=False, onion_dem
 
 
 if __name__ == "__main__":
-    
+
     parser = argparse.ArgumentParser(description="Minimal onion relay Mininet topology")
     parser.add_argument("--capture", action="store_true", help="start tcpdump on each path interface")
     parser.add_argument("--http-demo", action="store_true", help="start a fake HTTP server and request a page from the client")
     parser.add_argument("--test-latency", action="store_true", help="measure per-hop and end-to-end latency over the relay path")
     parser.add_argument("--onion-demo", action="store_true", help="run a minimal layered onion request through entry/middle/exit")
+    parser.add_argument(
+        "--tor-demo",
+        action="store_true",
+        help=(
+            "spin up a real Tor network via chutney (fully local, no internet), "
+            "send a request to the Mininet HTTP server through it, and optionally "
+            "capture traffic for Wireshark comparison (combine with --capture)"
+        ),
+    )
     args = parser.parse_args()
 
-    setLogLevel("info") 
-    create_network(capture=args.capture, http_demo=args.http_demo, test_latency=args.test_latency, onion_demo=args.onion_demo)
+    setLogLevel("info")
+    create_network(
+        capture=args.capture,
+        http_demo=args.http_demo,
+        test_latency=args.test_latency,
+        onion_demo=args.onion_demo,
+        tor_demo=args.tor_demo,
+    )

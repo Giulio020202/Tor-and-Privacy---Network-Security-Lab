@@ -3,3 +3,4 @@ onion-net/captures/
 *.pcap
 onion-net/__pycache__/
 *.pyc
+venv/
