@@ -18,7 +18,7 @@ def step_0():
         DNS lookups
         """
     )
-    st.dataframe(st.session_state.df)
+    st.dataframe(st.session_state.df, hide_index=True)
     
     st.subheader("Step 0.0: Wireshark Analysis")
     st.write(
@@ -49,7 +49,7 @@ def step_1():
     st.write(
         """
         Press the button to apply SHA256 to the source and destination IP
-        addresses.
+        addresses
         """
     )
     if st.button("SHA256"):
@@ -61,13 +61,13 @@ def step_1():
         )
         st.session_state.hashed = True
 
-    st.dataframe(st.session_state.df)
+    st.dataframe(st.session_state.df, hide_index=True)
 
     st.subheader("Step 1.2: Brute-force Attack")
     st.write(
         """
-        Choice IP range and press the button to perform a brute-force
-        attack.
+        Choose IP range and press the button to perform a brute-force
+        attack
         """
     )
     st.write("Original IPs:\n")
@@ -112,7 +112,7 @@ def step_1():
             if h in hashed_ips:
                 recovered[h] = str(ip)
                 find += 1
-                st.write(f"{h} -> {ip}\n")
+                st.write(f"- {h} -> {ip}\n")
 
                 if find == len(hashed_ips) - 1:
                     break
@@ -123,7 +123,7 @@ def step_1():
             if h in hashed_ips:
                 recovered[h] = str(ip)
                 find += 1
-                st.write(f"{h} -> {ip}\n")
+                st.write(f"- {h} -> {ip}\n")
 
                 if find == len(hashed_ips):
                     break
@@ -156,7 +156,7 @@ def step_2():
     st.write(
         """
         Press the button to apply RNG technique to the source and destination IP
-        addresses.
+        addresses
         """
     )
     if st.button("RNG"):
@@ -166,7 +166,7 @@ def step_2():
         packets['IP_DST'] = packets['IP_DST'].map(pseudonyms)
         st.session_state.df = packets
 
-    st.dataframe(st.session_state.df)
+    st.dataframe(st.session_state.df, hide_index=True)
 
     st.subheader("Next Step")
     st.write(
@@ -185,11 +185,11 @@ def step_3():
         # Step 3: Pseudonymization Technique - RNG per Packet
         """
     )
-    st.subheader("Step 2.1")
+    st.subheader("Step 3.1")
     st.write(
         """
         Press the button to apply RNG per packet technique to the source and
-        destination IP addresses.
+        destination IP addresses
         """
     )
     if st.button("RNG per packet"):
@@ -201,7 +201,7 @@ def step_3():
         ]
         st.session_state.df = packets
 
-    st.dataframe(st.session_state.df)
+    st.dataframe(st.session_state.df, hide_index=True)
 
 packets = pd.read_csv("dns_new.csv")
 original_ips = pd.unique(packets[['IP_SRC', 'IP_DST']].values.ravel())
