@@ -1,4 +1,4 @@
-Add makefile/script for the install requirements (mininet, openvswitch-switch, tcpdump, wireshark, python3, tor, chutney, tshark?)
+Add makefile/script for the install requirements (mininet, openvswitch-switch, tcpdump, wireshark, python3, tor, chutney, tshark?, tabulate, streamlit, pandas, numpy, mimesis)
 
 - Alessandro
   - Se si controllano relay (entry ed exit) si possono correlare i timing, cercare il caso in cui é stato fatto
