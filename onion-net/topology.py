@@ -242,7 +242,6 @@ def create_network(capture=False, http_demo=False, test_latency=False, onion_dem
     net.start()
 
     # set ips and routes
-    #TODO: make slides about the network topology and IP scheme to explain this part better
     client.setIP("10.0.0.0/31")
     entry.setIP("10.0.0.1/31", intf="entry-eth0")
     entry.setIP("10.0.0.2/31", intf="entry-eth1")
