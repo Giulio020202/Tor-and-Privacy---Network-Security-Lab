@@ -113,6 +113,7 @@ The attacks require the following Python modules:
 - numpy 
 - pandas
 - streamlit
+- tabulate
 
 ## Linking Attack
 

@@ -20,12 +20,13 @@ g = Generic(locale = Locale.EN)
 
 p_generator = PatientGenerator(g)
 num_p_records = num_records - 1 # number of rand entries of the patients dataset
-# generate target entry
+# generate entry of the target
 target_p = p_generator.generate_patient("02139", "1945-07-31", "Male", "Stroke")
 # generate random patients
 patients = [p_generator.generate_random_patient() for _ in range(num_p_records)]
 patients.insert(0, target_p)    # add the target to the patients
 
+# create the .csv file containing the patients dataset
 with open("patients.csv", "w", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=patients[0].keys())
     writer.writeheader()
@@ -39,6 +40,7 @@ targets_m = [v_generator.generate_voter("1945-07-31", "Male") for _ in range(2)]
 targets_f = [
     v_generator.generate_voter("1945-07-31", "Female") for _ in range(3)
 ]
+# create entry of the target of the attack
 target_v = [{
     "NAME": "William Floyd Weld",
     "ZIP": "02139",
@@ -46,9 +48,11 @@ target_v = [{
     "SEX": "Male",
     "PARTY_AFF": "Republican"
 }]
+# generate random voters
 voters = [v_generator.generate_random_voter() for _ in range(num_v_records)]
 voters = target_v + targets_m + targets_f + voters
 
+# create the .csv file containing the voters dataset
 with open("voters.csv", "w", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=voters[0].keys())
     writer.writeheader()
