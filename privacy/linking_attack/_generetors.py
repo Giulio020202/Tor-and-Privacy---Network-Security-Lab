@@ -36,7 +36,7 @@ class PatientGenerator():
         Returns:
             dictionary containing the patient's information.
         """
-        self.id+=1
+        self.id += 1
         return {
             "ID": self.id,
             "ZIP": zip,
@@ -57,10 +57,12 @@ class PatientGenerator():
         Returns:
             a "false" entry of the original patient
         """  
+        # choose a new diagnosis for the patient
         new_diagnosis = random.choice(self.diagnoses)
         if new_diagnosis == original_diagnosis:
             new_diagnosis = self.diagnoses[0]
-        self.id+=1
+        self.id += 1
+
         return {
             "ID": self.id,
             "ZIP": zip,
@@ -76,9 +78,8 @@ class PatientGenerator():
             dictionary containing the patient's information
         """
         self.id+=1
-        # zip codes of Massachusetts
-        zip = random.randrange(1001, 2791)
-        # zip 2139 only for William Floyd Weld (the attack target)
+        zip = random.randrange(1001, 2791)  # zip codes of Massachusetts
+        # zip 2139 only for William Floyd Weld (target of the attack)
         if zip == 2139: zip+=1
 
         return {
@@ -137,7 +138,7 @@ class VoterGenerator():
             dictionary containing the voter's information
         """
         zip = random.choice(self.zips)
-        # zip 2139 only for William Floyd Weld (the attack target)
+        # zip 2139 only for William Floyd Weld (target of the attack)
         if zip == "02139": zip = "02140"
     
         return {

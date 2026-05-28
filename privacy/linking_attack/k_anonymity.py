@@ -17,6 +17,7 @@ if len(sys.argv) == 2:
 else:
     k = 2   # default 2-anonymity
 
+# obtain patients
 patients = pd.read_csv("patients.csv", index_col=None)
 # find unique quasi-identifiers entries
 unique_entries = patients[
@@ -25,7 +26,6 @@ unique_entries = patients[
 
 g = Generic(locale = Locale.EN)
 p_g = PatientGenerator(g, id = len(patients))
-
 # generate k additional rows to avoid unique quasi-identifiers
 for e in unique_entries.itertuples():
     for i in range(k-1):
@@ -33,4 +33,5 @@ for e in unique_entries.itertuples():
             e.ZIP, e.BIRTH_DATE, e.SEX, e.DIAGNOSIS
         )
 
+# create the k-anonymity version of the dataset
 patients.to_csv("k_patients.csv", index=False)

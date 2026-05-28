@@ -5,18 +5,17 @@ import os
 
 # check file in input as argument
 if len(sys.argv) != 3:
-    raise Exception("arguments must be four")
+    raise Exception("you must insert the desired patients dataset path")
 
-print(sys.argv)
-
+# check data existence
 if not os.path.exists(sys.argv[2]):
     raise Exception ("dataset does not exist")
 
+# creates a page of the patients data an one for the voters data
 page = st.sidebar.radio("Datasets", ["Patients", "Voters"])
 
 # function to show the description of a dataset
 def show_dataframe(dt):
-
     st.subheader("Dataset Overview")
 
     if st.checkbox('Shape'):
@@ -28,7 +27,7 @@ def show_dataframe(dt):
     if st.checkbox('Tail (last 6 rows)'):
         st.dataframe(df.tail(6), hide_index=True)
 
-# create a page for the patients dataset
+# initialize the page for the patients dataset
 if page == "Patients":
     st.write(
         """
@@ -42,6 +41,7 @@ if page == "Patients":
     # store session state without shuffle
     if "view_df" not in st.session_state:
         st.session_state.view_df = df
+        
     # create a button to shuffle the dataset
     if st.button("Shuffle dataset"):
         st.session_state.view_df = st.session_state.view_df.sample(
